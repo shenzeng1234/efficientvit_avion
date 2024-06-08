@@ -26,11 +26,15 @@ class VideoClassifier(nn.Module):
         self.fc_cls.bias.data.zero_()
 
     def forward(self, image):
+        print(f"***VideoClassifier. Beginning of forward. shape of input image = {image.shape}")
+        print(f"VideoClassifier.self.visual = {self.visual}")
         image_embed = self.visual(image)
+        print(f"***VideoClassifier. Beginning of forward. shape of image_embed after self.visual(image) = {image_embed.shape}")
         if isinstance(image_embed, list):
             assert len(image_embed) == 1
             image_embed = image_embed[0]
         logit = self.fc_cls(self.dropout(image_embed))
+        print(f"***VideoClassifier. End of forward(). shape of logit = {logit.shape}")
         return logit
     
 
@@ -89,7 +93,6 @@ class CLIP(nn.Module):
 
         return F.normalize(image_embed, dim=-1), F.normalize(text_embed, dim=-1), self.logit_scale.exp()
 
-
 def CLIP_VITB16(
     freeze_temperature=False,
     use_grad_checkpointing=False,
@@ -106,6 +109,7 @@ def CLIP_VITB16(
     **kwargs
 ):
     # vision_model = timm.create_model('vit_base_patch16_224', num_classes=0)
+    print("*****Calling VisionTransformer()")
     vision_model = VisionTransformer(
         224, 16, 768, 12, 12, 4,
         output_dim=project_embed_dim, patch_dropout=patch_dropout,

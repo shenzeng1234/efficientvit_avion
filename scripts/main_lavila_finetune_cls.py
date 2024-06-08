@@ -27,6 +27,14 @@ from avion.data.tokenizer import tokenize
 from avion.data.transforms import Permute
 
 import avion.models.model_clip as model_clip
+import avion.models.efficientvit as effvit
+#import sys
+#sys.path.append("/home/ubuntu/github/efficientvit_video/")
+from efficientvit.models.utils import build_kwargs_from_config
+from efficientvit.apps.utils import parse_unknown_args
+#from efficientvit.models.efficientvit.backbone import EfficientViTBackbone 
+from avion.models.efficientvit import EfficientViTBackbone
+
 from avion.models.utils import inflate_positional_embeds
 from avion.optim.schedulers import cosine_scheduler
 import avion.utils.distributed as dist_utils
@@ -34,11 +42,11 @@ from avion.utils.evaluation_ek100cls import get_marginal_indexes, get_mean_accur
 from avion.utils.meters import AverageMeter, ProgressMeter
 from avion.utils.misc import check_loss_nan, generate_label_map
 
-
 def get_args_parser():
     parser = argparse.ArgumentParser(description='AVION finetune ek100 cls', add_help=False)
     parser.add_argument('--dataset', default='ek100_cls', type=str, choices=['ek100_mir'])
-    parser.add_argument('--root', default='datasets/EK100/EK100_256p_15sec/', type=str, help='path to train dataset root')
+    #parser.add_argument('--root', default='datasets/EK100/EK100_256p_15sec/', type=str, help='path to train dataset root')
+    parser.add_argument('--root', default='datasets/EK100/EK100_320p_15sec_30fps_libx264/', type=str, help='path to train dataset root')
     parser.add_argument('--train-metadata', type=str,
                         default='datasets/EK100/epic-kitchens-100-annotations/EPIC_100_train.csv')
     parser.add_argument('--val-metadata', type=str,
@@ -133,13 +141,13 @@ def main(args):
     else:
         raise Exception('no checkpoint found, add it by `--pretrain-model ${CHECKPOINT_PATH}`')
     ckpt = torch.load(ckpt_path, map_location='cpu')
+    print(f"ckpt_path = {ckpt_path}, type of ckpt = {type(ckpt)}")
     state_dict = OrderedDict()
     for k, v in ckpt['state_dict'].items():
         state_dict[k.replace('module.', '')] = v
 
     old_args = ckpt['args']
     print("=> creating model: {}".format(old_args.model))
-
     model = getattr(model_clip, old_args.model)(
         freeze_temperature=True,
         use_grad_checkpointing=args.use_grad_checkpointing,
@@ -155,6 +163,7 @@ def main(args):
         pretrain_zoo=old_args.pretrain_zoo,
         pretrain_path=old_args.pretrain_path,
     )
+    print(f"type of model_clip = {type(model_clip)}. type of model = {type(model)}, old_args.model = {old_args.model}, type of model.visual = {type(model.visual)}\n")
     model.logit_scale.requires_grad = False
     print('=> inflating PE in models due to different frame numbers')
     state_dict = inflate_positional_embeds(
@@ -165,13 +174,26 @@ def main(args):
     model.load_state_dict(state_dict, strict=True)
     print("=> loaded resume checkpoint '{}' (epoch {})".format(ckpt_path, ckpt['epoch']))
 
+    #new code
+    get_args_parser()
+    #args, opt = parser.parse_known_args()
+    _, opt = parser.parse_known_args()
+    kwargs = parse_unknown_args(opt)
+
+    effbb = effvit.EfficientViTBackbone(          
+            width_list=[8, 16, 32, 64, 128],
+            depth_list=[1, 2, 2, 2, 2],
+            dim=16,
+            **build_kwargs_from_config(kwargs, EfficientViTBackbone),
+        ) 
     model = model_clip.VideoClassifier(
-        model.visual,
+    #    model.visual,
+        effbb,
         dropout=args.dropout_rate,
         num_classes=args.num_classes
     )
     model.cuda(args.gpu)
-
+    #model.cuda()
     if args.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], bucket_cap_mb=200)
 
@@ -358,8 +380,6 @@ def main(args):
         warmup_epochs=args.warmup_epochs, start_warmup_value=args.lr_start
     )
 
-    print(args)
-
     print("=> beginning training")
     best_acc1 = 0.
     for epoch in range(args.start_epoch, args.epochs):
@@ -401,6 +421,7 @@ def main(args):
 
 
 def train(train_loader, transform_gpu, model, criterion, optimizer, scaler, epoch, mixup_fn, lr_schedule, args):
+    #print(f"in train(): model = {model}")
     batch_time = AverageMeter('Time', ':6.2f')
     data_time = AverageMeter('Data', ':6.2f')
     model_time = AverageMeter('Model', ':6.2f')
@@ -416,7 +437,8 @@ def train(train_loader, transform_gpu, model, criterion, optimizer, scaler, epoc
 
     # switch to train mode
     model.train()
-
+    model.to("cuda")
+    #torch.set_default_dtype(torch.float16)
     end = time.time()
 
     for data_iter, (videos, target) in enumerate(train_loader):
@@ -446,10 +468,11 @@ def train(train_loader, transform_gpu, model, criterion, optimizer, scaler, epoc
             videos_mixed, targets_mixed = videos, target
 
         optimizer.zero_grad()
-
         tic = time.time()
+        print(f"********Right Before start hitting model with videos_mixed.\nmodel = {model}\nvideos_mixed = {videos_mixed.shape}, dtype of videos_mixed = {videos_mixed.dtype} ")
         # compute output
         with amp.autocast(enabled=not args.disable_amp):
+            #with amp.autocast(enabled=True):
             output = model(videos_mixed)
             loss = criterion(output, targets_mixed)
             loss /= args.update_freq

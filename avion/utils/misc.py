@@ -42,7 +42,6 @@ def interpolate_pos_embed(old_pos_embed, model, num_frames):
 
 def generate_label_map(dataset):
     if dataset == 'ek100_cls':
-        print("Preprocess ek100 action label space")
         vn_list = []
         mapping_vn2narration = {}
         for f in [
