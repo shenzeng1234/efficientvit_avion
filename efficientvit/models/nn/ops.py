@@ -71,35 +71,24 @@ class ConvLayer(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         print(f"\nBL******ConvLayer: {self._modules}")
-        print(f"0 ConvLayer.forward(): shape of input x = {x.shape}, x dtype = {x.dtype}")
         if self.dropout is not None:
             x = self.dropout(x)
-            print(f"1 ConvLayer.forward(): shape of input x = {x.shape}, x dtype = {x.dtype}")
         #if self.conv.weight.dtype != torch.float16:
             #self.conv.weight = nn.Parameter(torch.float16)
         d = next(self.conv.parameters()).device
-        print(f"self.conv.device = {d}")
-        print(f"x.device = {x.device}")
         self.conv.to('cuda:0')
         x.to('cuda:0')
         x = self.conv(x)
-        #print(f"self.conv.device = {self.conv.device}, x.device = {x.device}")
-        print(f"2 ConvLayer.forward(): shape of input x = {x.shape}, x dtype = {x.dtype}")
         #x = x.type(torch.float32)
         #print(f"2a ConvLayer.forward(): shape of input x = {x.shape}, x dtype = {x.dtype}")
         #self.conv.weight = nn.Parameter(self.conv.weight.half())
         if self.norm:
             self.norm.to('cuda:0')
-            print(f"self.norm.device = {next(self.norm.parameters()).device}")
-            print(f"x.device = {x.device}")
             x = self.norm(x)
-            print(f"3 ConvLayer.forward(): shape of input x = {x.shape}, x dtype = {x.dtype}")
         if self.act:
             self.act.to('cuda:0')
             x = self.act(x)
-            print(f"4 ConvLayer.forward(): shape of input x = {x.shape}, x dtype = {x.dtype}")
         #x = x.type(torch.FloatTensor)
-        print(f"Output of ConvLayer shape = {x.shape}, x dtype = {x.dtype}")
         return x
 
 class UpSampleLayer(nn.Module):
@@ -207,10 +196,8 @@ class DSConv(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         print(f"\nBB******DSConv: {self._modules}")
-        print(f"In DSConv: input x shape = {x.shape}")
         x = self.depth_conv(x)
         x = self.point_conv(x)
-        print(f"In DSConv: output x shape = {x.shape}")
         return x
 
 
@@ -428,7 +415,7 @@ class LiteMLA(nn.Module):
 
     @autocast(enabled=False)
     def relu_linear_att(self, qkv: torch.Tensor) -> torch.Tensor:
-        B, _, D, H, W = list(qkv.size())
+        B, _, T, H, W = list(qkv.size())
         if qkv.dtype == torch.float16:
             qkv = qkv.float()
         qkv = torch.reshape(
@@ -437,8 +424,8 @@ class LiteMLA(nn.Module):
                 B,
                 -1,
                 3 * self.dim,
-                #D * H * W,
-                H * W,
+                T * H * W,
+                #H * W,
             ),
         )
         #qkv = torch.transpose(qkv, -1, -2)
@@ -467,7 +454,7 @@ class LiteMLA(nn.Module):
         out = out[:, :, :-1] / (out[:, :, -1:] + self.eps)
         #out = torch.transpose(out, -1, -2)
         #print(f"6 3rd out shape = {out.shape}, after transpose")
-        out = torch.reshape(out, (B, -1, H, W))
+        out = torch.reshape(out, (B, -1, T, H, W))
         
         return out
 
@@ -480,11 +467,7 @@ class LiteMLA(nn.Module):
             op.to("cuda:0")
             multi_scale_qkv.append(op(qkv))
         multi_scale_qkv = torch.cat(multi_scale_qkv, dim=1)
-        print(f"multi_scale_qkv shape = {multi_scale_qkv.shape}, fed to self.relu_linear_att()") 
         out = self.relu_linear_att(multi_scale_qkv)
-        print(f"self.proj = {self.proj}, shape of output from self.relu_linear_att() = {out.shape}, feed to self.proj()")
-        out = out.unsqueeze(-1)
-        print(f"out = {out.shape}, before feeding to self.proj()")
         out = self.proj(out)
 
         return out
@@ -531,7 +514,6 @@ class EfficientViTBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         print(f"\nBB******EfficientViTBlock: {self._modules}")
-        print(f"In EfficientViTBlock.forward(): shape of input x = {x.shape}, x dtype = {x.dtype}")
         x = self.context_module(x)
         x = self.local_module(x)
         return x

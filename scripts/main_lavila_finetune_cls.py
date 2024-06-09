@@ -27,13 +27,13 @@ from avion.data.tokenizer import tokenize
 from avion.data.transforms import Permute
 
 import avion.models.model_clip as model_clip
-import avion.models.efficientvit as effvit
+import avion.models.efficientvit_backbone as effvit
 #import sys
 #sys.path.append("/home/ubuntu/github/efficientvit_video/")
 from efficientvit.models.utils import build_kwargs_from_config
 from efficientvit.apps.utils import parse_unknown_args
 #from efficientvit.models.efficientvit.backbone import EfficientViTBackbone 
-from avion.models.efficientvit import EfficientViTBackbone
+#from avion.models.efficientvit import EfficientViTBackbone
 
 from avion.models.utils import inflate_positional_embeds
 from avion.optim.schedulers import cosine_scheduler
@@ -184,13 +184,14 @@ def main(args):
             width_list=[8, 16, 32, 64, 128],
             depth_list=[1, 2, 2, 2, 2],
             dim=16,
-            **build_kwargs_from_config(kwargs, EfficientViTBackbone),
+            **build_kwargs_from_config(kwargs, effvit.EfficientViTBackbone),
         ) 
     model = model_clip.VideoClassifier(
     #    model.visual,
         effbb,
         dropout=args.dropout_rate,
-        num_classes=args.num_classes
+        num_classes=args.num_classes,
+        **kwargs
     )
     model.cuda(args.gpu)
     #model.cuda()

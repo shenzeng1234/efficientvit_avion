@@ -8,6 +8,8 @@ from timm.models.layers import trunc_normal_
 from avion.models.transformer import TextTransformer, VisionTransformer
 from avion.models.utils import enable_grad_checkpointing, remap_keys_from_open_clip_to_vit
 
+from avion.models.efficientvit_cls import ClsHead
+from efficientvit.models.utils import build_kwargs_from_config
 
 class VideoClassifier(nn.Module):
     def __init__(self,
@@ -21,19 +23,28 @@ class VideoClassifier(nn.Module):
         self.dropout = nn.Dropout(dropout)
         if hasattr(self.visual, "image_projection"):
             self.visual.image_projection = None
-        self.fc_cls = nn.Linear(vision_model.width, num_classes, bias=True)
-        self.fc_cls.weight.data.normal_(mean=0.0, std=0.01)
-        self.fc_cls.bias.data.zero_()
+        #self.fc_cls = nn.Linear(vision_model.width, num_classes, bias=True)
+        #self.fc_cls.weight.data.normal_(mean=0.0, std=0.01)
+        #self.fc_cls.bias.data.zero_()
+        self.fc_cls = ClsHead(       
+                in_channels=128,
+                width_list=[1024, 1280],
+                n_classes=3806,
+                dropout=0.0,
+                norm="bn2d",
+                act_func="hswish",
+                fid="stage_final",
+                **build_kwargs_from_config(kwargs, ClsHead),
+            )
 
     def forward(self, image):
         print(f"***VideoClassifier. Beginning of forward. shape of input image = {image.shape}")
         print(f"VideoClassifier.self.visual = {self.visual}")
         image_embed = self.visual(image)
-        print(f"***VideoClassifier. Beginning of forward. shape of image_embed after self.visual(image) = {image_embed.shape}")
         if isinstance(image_embed, list):
             assert len(image_embed) == 1
             image_embed = image_embed[0]
-        logit = self.fc_cls(self.dropout(image_embed))
+        logit = self.fc_cls(image_embed)
         print(f"***VideoClassifier. End of forward(). shape of logit = {logit.shape}")
         return logit
     
