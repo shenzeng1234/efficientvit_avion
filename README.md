@@ -31,5 +31,5 @@ I wrote a short report on this research. The report is available upon request.
 2. J. Carreira and A. Zisserman. Quo vadis, action recognition? a new model and the kinetics dataset. In CVPR, 2017. URL (https://github.com/user-attachments/assets/c049389f-272f-4155-a0a9-1cf8924adb82)
 3. Y. Zhao and P. Krahenbuhl. Training a large video model on a single machine in a day, 2023. URL https://arxiv.org/pdf/2309.16669. URL (https://github.com/user-attachments/assets/6dc99946-2dd1-44d2-9924-e371b7370bf1)
 
-
+**Manuscript accepted to publish in 2024 IEEE BigData Conference Proceedings**
 
