@@ -24,12 +24,7 @@ The revised models were trained on a resized Epic-Kitechen 100 video dataset. Th
 1. With the current adaptation of the EfficientViT for video processing, training has been successful only for the b1-r288 model. Training of other EfficientViT models failed. Need to debug the network architecture so that training of other EfficientViT models could complete at pre-specified epoch numbers (e.g., 100) 
 2. The training accuracy attained in the current EfficientViT adaptation is low. Next step is to fine tune the network architecture and hyperparamteters to increase training accuracy to near SOTA (60%).
 
-I wrote a short report on this research. The report is available upon request.
 
-## References
-1. H. Cai, J. Li, M. Hu, C. Gan, and S. Han. Efficientvit: Multi-scale linear attention for high resolution dense prediction, 2023. URL https://doi.org/10.48550/arXiv.2205.14756. https://github.com/user-attachments/assets/ba56ead8-cada-4e84-9d82-1a4a1c69e7c6
-2. J. Carreira and A. Zisserman. Quo vadis, action recognition? a new model and the kinetics dataset. In CVPR, 2017. URL (https://github.com/user-attachments/assets/c049389f-272f-4155-a0a9-1cf8924adb82)
-3. Y. Zhao and P. Krahenbuhl. Training a large video model on a single machine in a day, 2023. URL https://arxiv.org/pdf/2309.16669. URL (https://github.com/user-attachments/assets/6dc99946-2dd1-44d2-9924-e371b7370bf1)
-
-**Manuscript accepted to publish in 2024 IEEE BigData Conference Proceedings**
+## Paper accepted by IEEE BigData 2024 Conference 
+EfficientViT for Video Action Recognition https://github.com/shenzeng1234/efficientvit_avion/blob/main/EfficientViT%20for%20Video%20Action%20Recognition.pdf
 
